@@ -24,3 +24,17 @@ def merge_pair(pair, word_freqs):
                 i += 1
         new_word_freqs[tuple(new_word)] = freq
     return new_word_freqs
+
+
+def train_bpe(word_freqs, num_merges):
+    word_freqs = dict(word_freqs)
+    merges = []
+    for step in range(num_merges):
+        pair_counts = get_pair_counts(word_freqs)
+        if not pair_counts:
+            break
+        best_pair = max(pair_counts, key=pair_counts.get)
+        word_freqs = merge_pair(best_pair, word_freqs)
+        merges.append(best_pair)
+        print(f"Merge {step + 1}: {best_pair}  (count={pair_counts[best_pair]})")
+    return word_freqs, merges
