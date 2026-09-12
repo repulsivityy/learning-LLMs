@@ -3,12 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def scaled_dot_product_attention(Q, K, V):
+def scaled_dot_product_attention(Q, K, V, mask=None):
     d_k = Q.shape[-1]
     scores = Q @ K.transpose(-2, -1) / (d_k ** 0.5)
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float('-inf'))
     weights = F.softmax(scores, dim=-1)
     output = weights @ V
     return output, weights
+
+
+def causal_mask(seq_len):
+    """seq_len x seq_len mask: token i can see tokens 0..i, nothing after."""
+    return torch.tril(torch.ones(seq_len, seq_len)).bool()
 
 
 class MultiHeadAttention(nn.Module):
@@ -23,7 +30,7 @@ class MultiHeadAttention(nn.Module):
         self.W_v = nn.Linear(d_model, d_model)
         self.W_o = nn.Linear(d_model, d_model)
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         batch_size, seq_len, d_model = x.shape
 
         Q = self.W_q(x)
@@ -34,7 +41,7 @@ class MultiHeadAttention(nn.Module):
         K = K.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         V = V.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
-        output, weights = scaled_dot_product_attention(Q, K, V)
+        output, weights = scaled_dot_product_attention(Q, K, V, mask=mask)
 
         output = output.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)
 
@@ -65,12 +72,12 @@ class TransformerBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff):
         super().__init__()
         self.mha = MultiHeadAttention(d_model, num_heads)
-        self.add_norm1 = ResidualLayerNorm(d_model)  # First for Attention
+        self.add_norm1 = ResidualLayerNorm(d_model)
         self.ff = FeedForward(d_model, d_ff)
-        self.add_norm2 = ResidualLayerNorm(d_model)  # Next for Feed-Forward
+        self.add_norm2 = ResidualLayerNorm(d_model)
 
-    def forward(self, x):
-        attn_output, weights = self.mha(x)
+    def forward(self, x, mask=None):
+        attn_output, weights = self.mha(x, mask=mask)
         x = self.add_norm1(x, attn_output)
 
         ff_output = self.ff(x)
@@ -96,7 +103,7 @@ class MultiHeadAttentionWithCache(nn.Module):
     def reset_cache(self):
         self.k_cache = None
         self.v_cache = None
-        self.kv_computations = 0  # how many tokens' K/V we've EVER computed
+        self.kv_computations = 0
 
     def _split_heads(self, x, batch_size, seq_len):
         return x.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
