@@ -38,3 +38,34 @@ def train_bpe(word_freqs, num_merges):
         merges.append(best_pair)
         print(f"Merge {step + 1}: {best_pair}  (count={pair_counts[best_pair]})")
     return word_freqs, merges
+
+
+def get_word_tokens(word, merges):
+    """Apply a learned merge list, in order, to a single word."""
+    tokens = list(word) + ['</w>']
+    for pair in merges:
+        new_tokens = []
+        i = 0
+        while i < len(tokens):
+            if i < len(tokens) - 1 and (tokens[i], tokens[i + 1]) == pair:
+                new_tokens.append(tokens[i] + tokens[i + 1])
+                i += 2
+            else:
+                new_tokens.append(tokens[i])
+                i += 1
+        tokens = new_tokens
+    return tokens
+
+
+def encode(text, merges):
+    """Whitespace-split text into words, then BPE-tokenize each word."""
+    all_tokens = []
+    for word in text.strip().split():
+        all_tokens.extend(get_word_tokens(word, merges))
+    return all_tokens
+
+
+def decode(tokens):
+    """Join tokens back into text."""
+    text = ''.join(tokens).replace('</w>', ' ')
+    return text.strip()
