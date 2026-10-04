@@ -184,7 +184,7 @@ Recommended: run this as a **Claude Project**, one chat per module.
 ## Progress Checklist
 No calendar — just tick these off as you go, in bursts whenever you have time.
 
-- [ ] Module 0 — Mechanics (tokenizer, attention, KV-cache from scratch)
+- [x] Module 0 — Mechanics (tokenizer, attention, KV-cache from scratch)
 - [ ] Module 1 — Train your SLM on GPU
 - [ ] Module 2 — Prompt engineering + structured output
 - [ ] Module 3 — Embeddings + RAG
